@@ -10,6 +10,7 @@ import (
 	"github.com/actgardner/gogen-avro/v10/vm"
 	"github.com/actgardner/gogen-avro/v10/vm/types"
 	"io"
+	"sort"
 )
 
 func writeMapBytes(r map[string]Bytes, w io.Writer) error {
@@ -17,7 +18,18 @@ func writeMapBytes(r map[string]Bytes, w io.Writer) error {
 	if err != nil || len(r) == 0 {
 		return err
 	}
-	for k, e := range r {
+	// fix: 因为 map 遍历不能保证顺序 由此, 会造成同样的数据, 序列化时会不一样
+	// 所以下面对此进行修正, 根据key的字符串顺序进行遍历
+	keys := make([]string, 0, len(r))
+	for k, _ := range r {
+		keys = append(keys, k)
+	}
+
+	// 对key做排序
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		e := r[k]
 		err = vm.WriteString(k, w)
 		if err != nil {
 			return err
@@ -27,6 +39,17 @@ func writeMapBytes(r map[string]Bytes, w io.Writer) error {
 			return err
 		}
 	}
+	
+	// for k, e := range r {
+	// 	err = vm.WriteString(k, w)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	err = vm.WriteBytes(e, w)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 	return vm.WriteLong(0, w)
 }
 
